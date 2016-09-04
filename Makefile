@@ -1,16 +1,14 @@
-CFLAGS=-g -O2 -Wall -Wextra -std=c99 -Isrc -rdynamic -DNDEBUG $(OPTFLAGS)
-LIBS=-ldl $(OPTLIBS) # Library linking options
-PREFIX?=/usr/local
-CHECK_LIBRARY_DIR=/usr/local/lib
+CFLAGS=		-g -O2 -Wall -Wextra -std=c99 -rdynamic -Isrc $(OPTFLAGS)
+PREFIX?=	/usr/local
 
-SOURCES=$(wildcard src/**/*.c src/*.c)
-OBJECTS=$(patsubst src/%.c,build/%.o,$(SOURCES))
+TARGET=		build/libroman_calculator.a
+SO_TARGET=	$(patsubst %.a,%.so,$(TARGET))
+TARGET_SOURCES=	$(wildcard src/**/*.c src/*.c)
+TARGET_OBJECTS=	$(patsubst src/%.c,build/%.o,$(TARGET_SOURCES))
 
-TEST_SRC=$(wildcard tests/check_*.c)
-TEST_OBJ=$(patsubst %.c,%,$(TEST_SRC))
-
-TARGET=build/libroman_calculator.a
-SO_TARGET=$(patsubst %.a,%.so,$(TARGET))
+TEST_TARGET=	tests/check_roman_calculator
+TEST_SOURCES=	$(wildcard tests/check_*.c)
+TEST_OBJECTS=	$(patsubst %.c,%,$(TEST_SOURCES))
 
 # The Target Build
 all: $(TARGET) $(SO_TARGET)
@@ -20,18 +18,18 @@ dev: CFLAGS=-g -Isrc -Wall -Wextra $(OPTFLAGS)
 dev: all check
 
 # Recipe for Object Files
-$(OBJECTS): build/%.o: src/%.c
+$(TARGET_OBJECTS): build/%.o: src/%.c
 	$(COMPILE.c) $(OUTPUT_OPTION) $<
 
-# Recipe for libroman_calculator
+# Recipe for Static Library. Links the TARGET to all objects.
 $(TARGET): CFLAGS += -fPIC
-$(TARGET): build $(OBJECTS)
-	ar rcs $@ $(OBJECTS)
+$(TARGET): build $(TARGET_OBJECTS)
+	$(AR) rcs $@ $(TARGET_OBJECTS)
 	ranlib $@
 
-# Recipe for shared objects. Links each SO_TARGET to all objects.
-$(SO_TARGET): $(TARGET) $(OBJECTS)
-	$(CC) -shared -o $@ $(OBJECTS)
+# Recipe for Shared Library. Links each SO_TARGET to all objects.
+$(SO_TARGET): $(TARGET) $(TARGET_OBJECTS)
+	$(CC) -shared -o $@ $(TARGET_OBJECTS)
 
 # Create build and bin subdirectories for object/library files and binaries.
 build:
@@ -39,24 +37,18 @@ build:
 	@mkdir -p bin
 
 # The Unit Tests
-tests/check_roman_calculator: $(TARGET)
-	cc tests/check_roman_calculator.c \
-	-o tests/check_roman_calculator build/libroman_calculator.a \
-	-L$(CHECK_LIBRARY_DIR) -Wl,-rpath=$(CHECK_LIBRARY_DIR) -lcheck
+$(TEST_TARGET): $(TARGET)
+	$(CC) $(CFLAGS) $(TEST_SOURCES) \
+	-o $(TEST_TARGET) \
+	$(TARGET) \
+	$(shell pkg-config --libs check)
 .PHONY: check
-check: tests/check_roman_calculator
-	./tests/check_roman_calculator
+check: $(TEST_TARGET)
+	./$(TEST_TARGET)
 
-# Valgrind
-valgrind:
-	VALGRIND="valgrind --log-file=/tmp/valgrind-%p.log" $(MAKE)
-
-# The Cleaner
+# The Cleaner.
 clean:
-	@rm -rf build $(OBJECTS) $(TESTS)
-	@rm -f tests/tests.log tests/check_roman_calculator
-	@find . -name "*.gc*" -exec rm {} \;
-	@rm -rf `find . -name "*.dSYM" -print`
+	@rm -rf build $(TEST_OBJECTS) $(TEST_TARGET)
 
 # Library Installer
 install: all
