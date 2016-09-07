@@ -185,6 +185,7 @@ START_TEST(ID_minus_XLV_is_CDLIV)
 {
     char *result = subtract_roman_numerals("ID", "XLV");
     ck_assert_str_eq(result, "CDLIV");
+    free(result);
 }
 END_TEST
 

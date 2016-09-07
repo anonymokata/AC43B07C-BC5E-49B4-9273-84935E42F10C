@@ -418,30 +418,63 @@ static char *replace_substring(char *original, char *old_sub, char *new_sub)
 
     if (!new_sub) new_sub = "";
 
-    original = my_strdup(original);
-    char *copy_of_original = my_strdup(original);
-    char *end_of_prev_match = copy_of_original;
+    char *result;
     char *next_match;
-    char *insertion_point = original;
+    char *temp;
 
+    int matches = 0;
     int next_match_distance;
     int old_sub_length = strlen(old_sub);
     int new_sub_length = strlen(new_sub);
 
-    while ( ( next_match = strstr(end_of_prev_match, old_sub) ) )
+    /*
+     * First, search through original, counting all instances of
+     * old_sub. We'll use this to determine the correct amount of
+     * memory to allocate for result.
+     */
+    temp = original;
+    while ( ( temp = strstr(temp, old_sub) ) )
     {
-        next_match_distance = next_match - end_of_prev_match;
-        insertion_point = strncpy(insertion_point, end_of_prev_match,
-                                  next_match_distance) + next_match_distance;
-        insertion_point = strncpy(insertion_point, new_sub,
-                                  new_sub_length) + new_sub_length;
-        end_of_prev_match += next_match_distance + old_sub_length;
+        matches++;
+        temp += old_sub_length;
     }
-    strcpy(insertion_point, end_of_prev_match);
 
-    free(copy_of_original);
+    if (matches == 0) return my_strdup(original);
 
-    return original;
+    /*
+     * Now that we've determined the number of old_sub matches in
+     * original, allocate space for the result string.
+     */
+    result = (char *) malloc(strlen(original)
+                             + matches * (strlen(new_sub)
+                                              - strlen(old_sub)) + 1);
+    if (!result) return NULL;
+
+    /*
+     * Now we can actually do the "heavy" lifting of replacing each
+     * instance of old_sub with new_sub.
+     */
+    next_match = original;
+    temp = result;
+    while (matches--) {
+        // Get address of the next old_sub match and distance from
+        // current point.
+        next_match = strstr(original, old_sub);
+        next_match_distance = next_match - original;
+        // Copy all characters in original from temp to
+        // next_match into result, and move temp past
+        // the inserted characters.
+        temp = strncpy(temp, original, next_match_distance)
+            + next_match_distance;
+        // Insert the new_sub and move temp past it.
+        temp = strncpy(temp, new_sub, new_sub_length)
+            + new_sub_length;
+        // Move original past the corresponding old_sub match
+        original += next_match_distance + old_sub_length;
+    }
+    // Copy the remainder of original into temp and finish
+    strcpy(temp, original);
+    return result;
 }
 
 /**
