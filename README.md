@@ -38,7 +38,7 @@ All make commands should be executed in the project's root directory.
 ## Tested Environments
   * Written on a PC running Linux Mint 17.3 Rosa.
   * Tested on a fresh virtual machine install of Ubuntu 14.04 with
-    `git`, `build-essentials`, and `check` packages installed.
+    `git`, `build-essentials`, `pkg-config`, and `check` packages installed.
 
 # Implementation Notes
   * The instructions for this C kata say that
